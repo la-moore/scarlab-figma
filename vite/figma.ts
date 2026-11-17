@@ -9,6 +9,11 @@ interface OptionsI {
     editorType: ("figma" | "figjam")[]
     api:  string
     main: string
+    documentAccess?: "dynamic-page"
+    networkAccess?: {
+        allowedDomains: string[]
+        devAllowedDomains?: string[]
+    }
 }
 
 const config = {

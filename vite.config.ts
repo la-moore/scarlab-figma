@@ -14,7 +14,12 @@ export default defineConfig({
             id: "1053846082213772972",
             editorType: ["figma"],
             api:  "1.0.0",
-            main: "src/figma.ts"
+            main: "src/figma.ts",
+            documentAccess: "dynamic-page",
+            networkAccess: {
+                allowedDomains: ["none"],
+                devAllowedDomains: ["http://localhost:3000"]
+            }
         })
     ]
 })

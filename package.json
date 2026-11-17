@@ -1,6 +1,7 @@
 {
-  "name": "@scarlab-icons/figma",
+  "name": "scarlab-figma",
   "version": "2.0.0",
+  "private": true,
   "description": "A set of free MIT-licensed high-quality SVG icons for UI development.",
   "author": "moorlex",
   "license": "MIT",
@@ -15,12 +16,15 @@
   },
   "devDependencies": {
     "@figma/plugin-typings": "^1.123.0",
+    "@tailwindcss/vite": "^4.1.13",
     "@types/node": "^24.10.1",
     "@vitejs/plugin-vue": "^6.0.2",
     "@vue/tsconfig": "^0.8.1",
-    "@tailwindcss/vite": "^4.1.13",
+    "esbuild": "^0.28.2",
+    "tailwindcss": "^4.3.5",
     "typescript": "~5.9.3",
     "vite": "^7.3.1",
+    "vite-plugin-singlefile": "^2.3.4",
     "vue-tsc": "^3.1.5"
   }
 }

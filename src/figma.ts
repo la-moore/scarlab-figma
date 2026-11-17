@@ -1,6 +1,6 @@
 figma.showUI(__html__, {
     width: 240,
-    height: 300
+    height: 500
 })
 
 figma.ui.on('message', (data) => {
@@ -17,6 +17,15 @@ function createFrame({ svg, name }: any) {
     const selection = figma.currentPage.selection[0]
 
     frame.name = name
+
+    frame.children.forEach((child) => {
+        if ('constraints' in child) {
+            child.constraints = {
+                horizontal: 'CENTER',
+                vertical: 'CENTER'
+            }
+        }
+    })
 
     if (selection && (selection.type === 'FRAME' || selection.type === 'GROUP')) {
         if (selection.type === 'FRAME') {
