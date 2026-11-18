@@ -1,111 +1,189 @@
 <template>
-  <div class="text-sm">
-    <div class="flex border-b border-gray-200">
-      <input
+  <div class="relative flex h-full flex-col">
+    <header class="space-y-2 border-b border-line p-2">
+      <div class="relative flex items-center">
+        <OutlineSearch
+          class="pointer-events-none absolute left-2 size-4 text-fg-tertiary"
+          aria-hidden="true"
+        />
+        <input
           ref="input"
           v-model="query"
-          class="h-10 px-3 appearance-none flex-1 focus:outline-0"
-          placeholder="Search..."
-      >
+          type="search"
+          aria-label="Search icons"
+          placeholder="Search icons…"
+          class="h-8 w-full appearance-none rounded-md border border-transparent bg-bg-secondary pr-8 pl-8 text-fg placeholder:text-fg-tertiary focus:border-line-selected focus:bg-bg focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+          @keydown.enter="insertFirst"
+          @keydown.esc="query = ''"
+        >
+        <button
+          v-if="query"
+          type="button"
+          aria-label="Clear search"
+          class="absolute right-1 flex size-6 items-center justify-center rounded-sm text-fg-secondary hover:bg-bg-hover hover:text-fg focus-visible:outline-2 focus-visible:outline-line-selected"
+          @click="clear"
+        >
+          <BaseX class="size-3.5" aria-hidden="true" />
+        </button>
+      </div>
+
+      <SegmentedControl
+        v-model="settings.style"
+        label="Icon style"
+        :options="styleOptions"
+      />
+
+      <InsertSettings
+        v-model="settings"
+        :stroke-enabled="settings.style !== 'solid'"
+      />
+    </header>
+
+    <main class="min-h-0 flex-1 overflow-y-auto">
+      <IconGrid
+        v-if="filtered.length"
+        :icons="filtered"
+        :stroke-width="settings.strokeWidth"
+        @insert="insert"
+        @drop="drop"
+        @hover="hovered = $event"
+      />
       <div
-          class="h-10 w-10 flex justify-center items-center cursor-pointer"
-          @click="query = ''"
+        v-else
+        class="flex h-full flex-col items-center justify-center gap-1 p-6 text-center text-fg-secondary"
       >
-        <BaseX stroke-width="1" />
+        <p class="font-medium text-fg">
+          No icons for “{{ query }}”
+        </p>
+        <p v-if="otherMatches">
+          Found {{ otherMatches }} in other styles
+        </p>
       </div>
-    </div>
+    </main>
 
-    <template
-        v-for="(item, _jdx) in list"
-        :key="_jdx"
-    >
-      <div class="">
-        <div
-            class="font-medium flex items-center h-10 cursor-pointer leading-10 px-3 border-b border-gray-200"
-            @click="item.isOpen = !item.isOpen"
-        >
-          <div class="flex-1">
-            {{ item.label }}
-          </div>
-          <div class="ml-3 -mr-3 w-10 p-2 flex justify-center items-center">
-            <BaseFold v-if="item.isOpen" />
-            <BaseUnfold v-else />
-          </div>
-        </div>
+    <footer class="flex h-8 items-center gap-3 border-t border-line pr-4 pl-3 text-fg-secondary">
+      <span class="min-w-0 flex-1 truncate">
+        <template v-if="hovered">
+          <span class="text-fg">{{ hovered.name }}</span> · click or drag
+        </template>
+        <template v-else>
+          {{ filtered.length }} icons · v{{ version }}
+        </template>
+      </span>
+      <a
+        v-for="link in LINKS"
+        :key="link.href"
+        :href="link.href"
+        target="_blank"
+        rel="noopener"
+        class="hover:text-fg-brand"
+      >{{ link.label }}</a>
+    </footer>
 
-        <div
-            v-if="item.isOpen"
-            class="flex flex-wrap border-b border-gray-200"
-        >
-          <template
-              v-for="(icon, _idx) in item.icons"
-              :key="_idx"
-          >
-            <div class="w-1/6 h-10 flex justify-center cursor-pointer items-center shrink-0 hover:bg-gray-100"
-                 @click="() => postMessage('CREATE_SVG_FRAME', { svg: toSvg(icon, { width: '24', height: '24' }), name: icon.name })">
-              <div v-html="toSvg(icon, { width: '24', height: '24' })" />
-            </div>
-          </template>
-        </div>
-      </div>
-    </template>
-
-    <div class="p-3 text-gray-500 text-center flex flex-col items-center space-y-3">
-      <a class="text-blue-500" href="http://scarlab-icons.la-moore.ru/" target="_blank">Web App</a>
-      <div class="space-x-3">
-        <a class="text-blue-500" href="https://github.com/la-moore/scarlab-icons" target="_blank">GitHub</a>
-        <a class="text-blue-500" href="https://www.npmjs.com/org/scarlab" target="_blank">NPM</a>
-      </div>
-      <p>
-        Scarlab Icons v{{ version }}
-      </p>
-    </div>
+    <ResizeHandle />
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, computed, watch, onMounted } from 'vue'
-import { BaseX, BaseFold, BaseUnfold } from '@scarlab-icons/vue/base'
-import { icons } from '@scarlab-icons/icons'
-import { toSvg } from './utils'
+import { computed, onMounted, ref, watch } from 'vue'
+import { BaseX } from '@scarlab-icons/vue/base'
+import { OutlineSearch } from '@scarlab-icons/vue/outline'
+import { icons, type Node as IconNode } from '@scarlab-icons/icons'
+import IconGrid from './components/IconGrid.vue'
+import InsertSettings from './components/InsertSettings.vue'
+import ResizeHandle from './components/ResizeHandle.vue'
+import SegmentedControl from './components/SegmentedControl.vue'
+import { DEFAULT_SETTINGS, type IconStyle, type PluginMessage, type Settings } from './messages'
+import { matchesQuery, postToPlugin, toInsertPayload, toTerms } from './utils'
 
-const version = ref('3.0.0')
+const STYLES: { value: IconStyle, label: string }[] = [
+  { value: 'base', label: 'Base' },
+  { value: 'outline', label: 'Outline' },
+  { value: 'solid', label: 'Solid' },
+  { value: 'ghost', label: 'Ghost' }
+]
+
+const LINKS = [
+  { label: 'Web', href: 'https://scarlab-icons.la-moore.ru/' },
+  { label: 'GitHub', href: 'https://github.com/la-moore/scarlab-icons' }
+]
+
+const version = __ICONS_VERSION__
 const query = ref('')
-const input = ref<HTMLElement>()
-const list = reactive([
-  {
-    label: 'Base',
-    isOpen: false,
-    icons: computed(() => icons.filter((icon) => icon.style === 'base' && icon.name.includes(query.value)))
-  },
-  {
-    label: 'Outline',
-    isOpen: false,
-    icons: computed(() => icons.filter((icon) => icon.style === 'outline' && icon.name.includes(query.value)))
-  },
-  {
-    label: 'Solid',
-    isOpen: false,
-    icons: computed(() => icons.filter((icon) => icon.style === 'solid' && icon.name.includes(query.value)))
-  },
-  {
-    label: 'Ghost',
-    isOpen: false,
-    icons: computed(() => icons.filter((icon) => icon.style === 'ghost' && icon.name.includes(query.value)))
-  }
-])
+const input = ref<HTMLInputElement>()
+const hovered = ref<IconNode | null>(null)
+const settings = ref<Settings>({ ...DEFAULT_SETTINGS })
+let settingsLoaded = false
 
-watch(query, (v) => {
-  list.forEach((item) => item.isOpen = Boolean(v))
+const terms = computed(() => toTerms(query.value))
+
+const matchesByStyle = computed(() => {
+  const result = Object.fromEntries(STYLES.map(({ value }) => [value, [] as IconNode[]])) as Record<IconStyle, IconNode[]>
+
+  for (const icon of icons) {
+    if (matchesQuery(icon.name, terms.value)) {
+      result[icon.style as IconStyle]?.push(icon)
+    }
+  }
+
+  return result
 })
 
-function postMessage(action: string, data: any) {
-  window.parent.postMessage({ pluginMessage: JSON.stringify({ action, data }) }, '*')
+const filtered = computed(() => matchesByStyle.value[settings.value.style])
+
+const otherMatches = computed(() => STYLES.reduce((sum, { value }) => sum + matchesByStyle.value[value].length, 0))
+
+const styleOptions = computed(() => STYLES.map((style) => ({
+  ...style,
+  count: query.value ? matchesByStyle.value[style.value].length : undefined
+})))
+
+function insert(icon: IconNode) {
+  postToPlugin({ type: 'insert', icon: toInsertPayload(icon, settings.value) })
 }
 
-onMounted(() => {
-  if (input.value) {
-    input.value.focus()
+function insertFirst() {
+  if (filtered.value[0]) insert(filtered.value[0])
+}
+
+function drop(icon: IconNode, event: DragEvent) {
+  // A drag that ends inside the plugin window is a cancelled drop.
+  if (event.clientX >= 0 && event.clientX <= window.innerWidth && event.clientY >= 0 && event.clientY <= window.innerHeight) {
+    return
   }
+
+  window.parent.postMessage({
+    pluginDrop: {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      items: [],
+      dropMetadata: toInsertPayload(icon, settings.value)
+    }
+  }, '*')
+}
+
+function clear() {
+  query.value = ''
+  input.value?.focus()
+}
+
+watch(settings, (value) => {
+  if (settingsLoaded) {
+    postToPlugin({ type: 'save-settings', settings: { ...value } })
+  }
+}, { deep: true })
+
+window.addEventListener('message', (event: MessageEvent<{ pluginMessage?: PluginMessage }>) => {
+  const message = event.data?.pluginMessage
+
+  if (message?.type === 'settings') {
+    settings.value = { ...DEFAULT_SETTINGS, ...message.settings }
+    settingsLoaded = true
+  }
+})
+
+onMounted(() => {
+  input.value?.focus()
+  postToPlugin({ type: 'ready' })
 })
 </script>

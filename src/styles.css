@@ -1,1 +1,75 @@
 @import "tailwindcss";
+
+/*
+ * Figma injects --figma-color-* variables when the plugin is opened with
+ * `themeColors: true`. Fallbacks keep the UI usable in a regular browser (npm run dev).
+ */
+@theme {
+  --color-bg: var(--figma-color-bg, #ffffff);
+  --color-bg-hover: var(--figma-color-bg-hover, #f5f5f5);
+  --color-bg-secondary: var(--figma-color-bg-secondary, #f5f5f5);
+  --color-bg-selected: var(--figma-color-bg-selected, #e5f4ff);
+  --color-bg-brand: var(--figma-color-bg-brand, #0d99ff);
+  --color-fg: var(--figma-color-text, #000000e6);
+  --color-fg-secondary: var(--figma-color-text-secondary, #00000080);
+  --color-fg-tertiary: var(--figma-color-text-tertiary, #0000004d);
+  --color-fg-brand: var(--figma-color-text-brand, #007be5);
+  --color-fg-onbrand: var(--figma-color-text-onbrand, #ffffff);
+  --color-line: var(--figma-color-border, #e6e6e6);
+  --color-line-selected: var(--figma-color-border-selected, #0d99ff);
+  --color-menu: var(--figma-color-bg-menu, #1e1e1e);
+  --color-menu-fg: var(--figma-color-text-menu, #ffffff);
+  --color-menu-hover: var(--figma-color-bg-menu-hover, #0d99ff);
+  --font-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-fg);
+  font-size: 11px;
+  overflow: hidden;
+}
+
+/* Figma UI3-like input field: filled, border appears on hover and focus. */
+@utility field {
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-fg);
+
+  &:hover {
+    border-color: var(--color-line);
+  }
+
+  &:focus-visible,
+  &:focus-within {
+    border-color: var(--color-line-selected);
+    outline: none;
+  }
+}
+
+@utility field-active {
+  border-color: var(--color-line-selected) !important;
+}
+
+@utility menu {
+  background-color: var(--color-menu);
+  color: var(--color-menu-fg);
+  box-shadow:
+    0 5px 17px rgb(0 0 0 / 0.2),
+    0 2px 7px rgb(0 0 0 / 0.15),
+    inset 0 0 0 0.5px rgb(255 255 255 / 0.12);
+}
+
+@utility menu-item-active {
+  background-color: var(--color-menu-hover);
+  color: var(--figma-color-text-onbrand, #ffffff);
+}
